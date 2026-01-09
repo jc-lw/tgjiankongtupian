@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资源监控面板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 md:p-10">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-2xl font-bold mb-8 text-gray-800 border-l-4 border-blue-600 pl-3">🔓 免费区域</h1>
+        
+        <div id="app" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div v-if="loading" class="text-center col-span-3">加载中...</div>
+            
+            <div v-for="msg in messages" :key="msg.id" class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition">
+                <div class="h-64 bg-gray-200 overflow-hidden">
+                    <img :src="msg.image_url || 'https://via.placeholder.com/400x300?text=No+Image'" class="w-full h-full object-cover">
+                </div>
+                <div class="p-5">
+                    <h3 class="font-bold text-lg mb-2 text-gray-800 line-clamp-2">{{ msg.content || '无标题资源' }}</h3>
+                    <div class="flex items-center text-xs text-gray-400 mb-4">
+                        <span>👁️ {{ Math.floor(Math.random()*100) }}K</span>
+                        <span class="ml-4">❤️ {{ Math.floor(Math.random()*500) }}</span>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <a :href="msg.post_link" target="_blank" class="bg-blue-600 text-white text-center py-2 rounded-lg font-medium hover:bg-blue-700 transition">访问群组原文</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() { return { messages: [], loading: true } },
+            async mounted() {
+                const res = await fetch('https://你的worker名.workers.dev/list');
+                this.messages = await res.json();
+                this.loading = false;
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
