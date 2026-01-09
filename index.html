@@ -7,51 +7,84 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .sidebar-deco { width: 6px; background-color: #4b5563; } /* 仿图1左侧装饰条 */
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        /* 仿图1左侧装饰条 */
+        .sidebar-deco { width: 6px; background-color: #4b5563; } 
+        /* 简介文本保留换行 */
+        .description-text { white-space: pre-wrap; word-break: break-word; }
+        /* 评分样式 */
+        .rating-box {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(246, 211, 101, 0.4);
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen p-6 md:p-12">
+<body class="bg-gray-100 min-h-screen p-6 md:p-12 font-sans">
     <div id="app" class="max-w-7xl mx-auto">
-        <div class="flex items-center mb-8 border-b pb-4">
-            <i class="fas fa-lock text-gray-800 text-2xl mr-3"></i>
-            <h1 class="text-2xl font-bold text-gray-800">免费区域</h1>
+        <div class="flex items-center mb-8 border-b border-gray-200 pb-4">
+            <i class="fas fa-images text-blue-600 text-3xl mr-3"></i>
+            <h1 class="text-3xl font-extrabold text-gray-800 tracking-tight">最新壁纸资源</h1>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div v-for="item in messages" :key="item.id" class="bg-white rounded-xl shadow-sm overflow-hidden flex border border-gray-100 hover:shadow-md transition">
-                <div class="sidebar-deco"></div>
+        <div v-if="loading" class="flex justify-center items-center h-64">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div v-for="item in messages" :key="item.msg_id" class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-xl transition-shadow duration-300 h-full">
                 
-                <div class="flex-1 p-6 flex flex-col">
-                    <div v-if="item.image_url" class="mb-4 rounded-lg overflow-hidden bg-gray-100 aspect-video">
-                        <img :src="item.image_url" class="w-full h-full object-cover">
+                <div class="relative aspect-[4/3] bg-gray-200">
+                    <img v-if="item.image_url" :src="item.image_url" alt="资源预览" class="w-full h-full object-cover" loading="lazy">
+                    <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400">
+                        <i class="fas fa-image text-5xl"></i>
                     </div>
+                </div>
+                
+                <div class="flex flex-1">
+                    <div class="sidebar-deco flex-shrink-0"></div>
 
-                    <h2 class="text-lg font-bold text-gray-800 mb-2 line-clamp-2 leading-tight">
-                        {{ item.content || '无标题资源' }}
-                    </h2>
-                    
-                    <div class="flex items-center text-orange-500 text-sm mb-6">
-                        <i class="fas fa-star mr-1"></i>
-                        <span class="font-bold">评分: 4.8 / 5.0</span>
-                    </div>
+                    <div class="flex-1 p-6 flex flex-col justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 mb-3 leading-tight">
+                                {{ item.subtitle || '未命名资源' }}
+                            </h2>
+                            
+                            <p class="text-gray-600 text-sm mb-6 description-text line-clamp-6">
+                                {{ item.description || '暂无简介...' }}
+                            </p>
+                        </div>
 
-                    <div class="space-y-3 mt-auto">
-                        <a :href="item.post_link" target="_blank" class="flex items-center justify-center w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold shadow-sm">
-                            <i class="fas fa-external-link-alt mr-2"></i> 访问网站
-                        </a>
-                        <button class="flex items-center justify-center w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-bold shadow-sm">
-                            <i class="fas fa-book-open mr-2"></i> 查看教程
-                        </button>
-                    </div>
+                        <div>
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <a :href="item.telegraph_link || '#'" target="_blank" 
+                                   :class="['flex items-center justify-center py-2.5 px-4 rounded-lg font-bold text-sm transition-colors duration-200', 
+                                            item.telegraph_link ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
+                                    <i class="fas fa-external-link-alt mr-2"></i> telegraph（原图）
+                                </a>
+                                <a :href="item.gallery_link || '#'" target="_blank"
+                                   :class="['flex items-center justify-center py-2.5 px-4 rounded-lg font-bold text-sm transition-colors duration-200',
+                                            item.gallery_link ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm' : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
+                                    <i class="fas fa-images mr-2"></i> 跳转画廊
+                                </a>
+                            </div>
 
-                    <div class="mt-6 pt-4 border-t border-dashed border-gray-100 flex items-center text-gray-400 text-xs">
-                        <span class="flex items-center mr-6">
-                            <i class="far fa-eye mr-1.5"></i> {{ (Math.random()*100).toFixed(1) }}K
-                        </span>
-                        <span class="flex items-center">
-                            <i class="far fa-heart mr-1.5"></i> {{ Math.floor(Math.random()*500) }}
-                        </span>
+                            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                                <div v-if="item.rating" class="rating-box flex items-center">
+                                    <i class="fas fa-star mr-1.5 text-sm"></i>
+                                    <span>评分: {{ item.rating }}</span>
+                                </div>
+                                <div v-else class="text-gray-400 text-sm flex items-center">
+                                    <i class="far fa-star mr-1.5"></i> 暂无评分
+                                </div>
+
+                                <a :href="item.post_link" target="_blank" class="text-gray-400 hover:text-blue-500 text-xs transition-colors">
+                                    <i class="fab fa-telegram-plane mr-1"></i> 查看来源
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -65,15 +98,20 @@
             data() {
                 return {
                     messages: [],
-                    apiUrl: 'https://tg-api.1597021644.workers.dev/list' // 填入你的Worker地址
+                    loading: true,
+                    apiUrl: 'https://tg-api.1597021644.workers.dev/list' // 确保是你的 Worker 地址
                 }
             },
             async mounted() {
                 try {
                     const res = await fetch(this.apiUrl);
+                    if (!res.ok) throw new Error('网络请求失败');
                     this.messages = await res.json();
                 } catch (e) {
-                    console.error("加载失败");
+                    console.error("加载失败:", e);
+                    alert("加载数据失败，请检查网络或后端服务。");
+                } finally {
+                    this.loading = false;
                 }
             }
         }).mount('#app')
