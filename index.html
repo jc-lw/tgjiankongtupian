@@ -3,40 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TG 资源监控面板</title>
+    <title>资源监控面板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .card-decoration { width: 8px; background-color: #334155; }
+        .sidebar-deco { width: 6px; background-color: #4b5563; } /* 仿图1左侧装饰条 */
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .btn-shadow { shadow-sm shadow-blue-200; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen p-4 md:p-10">
+<body class="bg-gray-50 min-h-screen p-6 md:p-12">
     <div id="app" class="max-w-7xl mx-auto">
-        <div class="flex items-center mb-10 border-b pb-4 border-slate-200">
-            <i class="fas fa-shield-halved text-slate-700 text-2xl mr-3"></i>
-            <h1 class="text-2xl font-bold text-slate-800">监控资源流 - 免费区域</h1>
+        <div class="flex items-center mb-8 border-b pb-4">
+            <i class="fas fa-lock text-gray-800 text-2xl mr-3"></i>
+            <h1 class="text-2xl font-bold text-gray-800">免费区域</h1>
         </div>
 
-        <div v-if="loading" class="text-center py-20 text-slate-400">
-            <i class="fas fa-circle-notch animate-spin text-3xl mb-4"></i>
-            <p>正在同步最新历史记录...</p>
-        </div>
-
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div v-for="item in messages" :key="item.id" 
-                 class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex hover:shadow-2xl transition-all duration-300">
-                
-                <div class="card-decoration"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div v-for="item in messages" :key="item.id" class="bg-white rounded-xl shadow-sm overflow-hidden flex border border-gray-100 hover:shadow-md transition">
+                <div class="sidebar-deco"></div>
                 
                 <div class="flex-1 p-6 flex flex-col">
-                    <div v-if="item.image_url" class="mb-5 rounded-xl overflow-hidden bg-slate-100 aspect-video">
+                    <div v-if="item.image_url" class="mb-4 rounded-lg overflow-hidden bg-gray-100 aspect-video">
                         <img :src="item.image_url" class="w-full h-full object-cover">
                     </div>
 
-                    <h2 class="text-lg font-bold text-slate-800 mb-3 line-clamp-2 leading-snug">
-                        {{ item.content || '未命名资源' }}
+                    <h2 class="text-lg font-bold text-gray-800 mb-2 line-clamp-2 leading-tight">
+                        {{ item.content || '无标题资源' }}
                     </h2>
                     
                     <div class="flex items-center text-orange-500 text-sm mb-6">
@@ -45,21 +37,21 @@
                     </div>
 
                     <div class="space-y-3 mt-auto">
-                        <a :href="item.post_link" target="_blank" 
-                           class="flex items-center justify-center w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold transition-all btn-shadow">
-                            <i class="fas fa-paper-plane mr-2"></i> 访问原文
+                        <a :href="item.post_link" target="_blank" class="flex items-center justify-center w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold shadow-sm">
+                            <i class="fas fa-external-link-alt mr-2"></i> 访问网站
                         </a>
-                        <button class="flex items-center justify-center w-full py-3.5 bg-slate-100 text-slate-400 rounded-full font-bold cursor-not-allowed">
-                            <i class="fas fa-lock mr-2"></i> 暂无教程
+                        <button class="flex items-center justify-center w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-bold shadow-sm">
+                            <i class="fas fa-book-open mr-2"></i> 查看教程
                         </button>
                     </div>
 
-                    <div class="mt-6 pt-4 border-t border-dashed border-slate-100 flex items-center justify-between text-slate-400 text-xs">
-                        <div class="flex space-x-4">
-                            <span><i class="far fa-eye mr-1"></i> {{ (Math.random()*50).toFixed(1) }}K</span>
-                            <span><i class="far fa-heart mr-1"></i> {{ Math.floor(Math.random()*999) }}</span>
-                        </div>
-                        <span class="text-slate-300">{{ item.created_at?.split(' ')[0] }}</span>
+                    <div class="mt-6 pt-4 border-t border-dashed border-gray-100 flex items-center text-gray-400 text-xs">
+                        <span class="flex items-center mr-6">
+                            <i class="far fa-eye mr-1.5"></i> {{ (Math.random()*100).toFixed(1) }}K
+                        </span>
+                        <span class="flex items-center">
+                            <i class="far fa-heart mr-1.5"></i> {{ Math.floor(Math.random()*500) }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -73,21 +65,15 @@
             data() {
                 return {
                     messages: [],
-                    loading: true,
-                    // 对应你的 Worker 地址
-                    apiUrl: 'https://tg-api.1597021644.workers.dev/list'
+                    apiUrl: 'https://tg-api.1597021644.workers.dev/list' // 填入你的Worker地址
                 }
             },
             async mounted() {
                 try {
-                    const response = await fetch(this.apiUrl);
-                    if (response.ok) {
-                        this.messages = await response.json();
-                    }
-                } catch (error) {
-                    console.error("Fetch Error:", error);
-                } finally {
-                    this.loading = false;
+                    const res = await fetch(this.apiUrl);
+                    this.messages = await res.json();
+                } catch (e) {
+                    console.error("加载失败");
                 }
             }
         }).mount('#app')
