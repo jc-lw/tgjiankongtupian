@@ -3,118 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>资源监控面板</title>
+    <title>Telegram 频道图库监控</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 仿图1左侧装饰条 */
-        .sidebar-deco { width: 6px; background-color: #4b5563; } 
-        /* 简介文本保留换行 */
-        .description-text { white-space: pre-wrap; word-break: break-word; }
-        /* 评分样式 */
-        .rating-box {
-            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-            color: #fff;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(246, 211, 101, 0.4);
+        /* 简单的加载动画 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
         }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-6 md:p-12 font-sans">
-    <div id="app" class="max-w-7xl mx-auto">
-        <div class="flex items-center mb-8 border-b border-gray-200 pb-4">
-            <i class="fas fa-images text-blue-600 text-3xl mr-3"></i>
-            <h1 class="text-3xl font-extrabold text-gray-800 tracking-tight">最新壁纸资源</h1>
-        </div>
+<body class="bg-gray-100 min-h-screen">
 
-        <div v-if="loading" class="flex justify-center items-center h-64">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-        </div>
+<div id="app" class="container mx-auto px-4 py-8">
+    
+    <div class="flex justify-between items-center mb-8 bg-white p-4 rounded-lg shadow-md sticky top-0 z-50">
+        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span>✨</span> TG 频道图库
+        </h1>
+        
+        <div class="flex items-center gap-4">
+            <button @click="fetchData" class="p-2 hover:bg-gray-100 rounded-full transition" title="刷新数据">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.051M20.418 20.418A9.956 9.956 0 0022 12c0-5.523-4.477-10-10-10S2 6.477 2 12a9.958 9.958 0 002.257 6.315L2 21h5.793l-1.375-1.582z" />
+                </svg>
+            </button>
 
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div v-for="item in messages" :key="item.msg_id" class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-xl transition-shadow duration-300 h-full">
-                
-                <div class="relative aspect-[4/3] bg-gray-200">
-                    <img v-if="item.image_url" :src="item.image_url" alt="资源预览" class="w-full h-full object-cover" loading="lazy">
-                    <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400">
-                        <i class="fas fa-image text-5xl"></i>
-                    </div>
+            <button 
+                @click="toggleSort" 
+                class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition shadow-sm text-sm font-medium">
+                <span v-if="isDesc">⬇️ 最新在先</span>
+                <span v-else>⬆️ 旧的最先</span>
+            </button>
+        </div>
+    </div>
+
+    <div v-if="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm" role="alert">
+        <p class="font-bold">加载失败</p>
+        <p>{{ error }}</p>
+    </div>
+
+    <div v-if="loading" class="flex justify-center items-center py-20">
+        <div class="loader mr-3"></div>
+        <span class="text-gray-500 text-lg">正在加载资源...</span>
+    </div>
+
+    <div v-if="!loading && items.length === 0" class="text-center py-20 text-gray-500">
+        <p class="text-xl">暂无数据</p>
+        <p class="text-sm mt-2">请确认 Worker 是否已有数据推送</p>
+    </div>
+
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div v-for="item in items" :key="item.msg_id" class="bg-white rounded-xl shadow-sm hover:shadow-xl transition duration-300 overflow-hidden group flex flex-col">
+            
+            <div class="relative aspect-[3/4] overflow-hidden bg-gray-200">
+                <img 
+                    :src="item.image_url" 
+                    :alt="item.msg_id"
+                    loading="lazy"
+                    class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500 cursor-pointer"
+                    @click="openImage(item.image_url)"
+                    @error="handleImageError"
+                >
+                <div v-if="item.rating" class="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-yellow-400 text-xs px-2 py-1 rounded-full font-bold">
+                    ★ {{ item.rating }}
                 </div>
+            </div>
+
+            <div class="p-4 flex flex-col flex-grow">
+                <h3 class="font-bold text-gray-800 text-lg mb-1 line-clamp-1" :title="item.subtitle || '无标题'">
+                    {{ item.subtitle || '无标题' }}
+                </h3>
                 
-                <div class="flex flex-1">
-                    <div class="sidebar-deco flex-shrink-0"></div>
+                <p class="text-gray-600 text-sm line-clamp-3 mb-4 flex-grow h-16">
+                    {{ item.description || item.content || '暂无描述...' }}
+                </p>
 
-                    <div class="flex-1 p-6 flex flex-col justify-between">
-                        <div>
-                            <h2 class="text-xl font-bold text-gray-900 mb-3 leading-tight">
-                                {{ item.subtitle || '未命名资源' }}
-                            </h2>
-                            
-                            <p class="text-gray-600 text-sm mb-6 description-text line-clamp-6">
-                                {{ item.description || '暂无简介...' }}
-                            </p>
-                        </div>
+                <div class="text-xs text-gray-400 mb-3 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    {{ formatDate(item.timestamp) }}
+                </div>
 
-                        <div>
-                            <div class="grid grid-cols-2 gap-4 mb-6">
-                                <a :href="item.telegraph_link || '#'" target="_blank" 
-                                   :class="['flex items-center justify-center py-2.5 px-4 rounded-lg font-bold text-sm transition-colors duration-200', 
-                                            item.telegraph_link ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
-                                    <i class="fas fa-external-link-alt mr-2"></i> telegraph（原图）
-                                </a>
-                                <a :href="item.gallery_link || '#'" target="_blank"
-                                   :class="['flex items-center justify-center py-2.5 px-4 rounded-lg font-bold text-sm transition-colors duration-200',
-                                            item.gallery_link ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm' : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
-                                    <i class="fas fa-images mr-2"></i> 跳转画廊
-                                </a>
-                            </div>
-
-                            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                <div v-if="item.rating" class="rating-box flex items-center">
-                                    <i class="fas fa-star mr-1.5 text-sm"></i>
-                                    <span>评分: {{ item.rating }}</span>
-                                </div>
-                                <div v-else class="text-gray-400 text-sm flex items-center">
-                                    <i class="far fa-star mr-1.5"></i> 暂无评分
-                                </div>
-
-                                <a :href="item.post_link" target="_blank" class="text-gray-400 hover:text-blue-500 text-xs transition-colors">
-                                    <i class="fab fa-telegram-plane mr-1"></i> 查看来源
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                <div class="flex gap-2 mt-auto pt-3 border-t border-gray-100">
+                    <a :href="item.post_link" target="_blank" class="flex-1 text-center py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 text-xs font-semibold transition">
+                        TG原文
+                    </a>
+                    <a v-if="item.telegraph_link" :href="item.telegraph_link" target="_blank" class="flex-1 text-center py-2 bg-gray-50 text-gray-600 rounded hover:bg-gray-200 text-xs font-semibold transition">
+                        Telegraph
+                    </a>
+                    <a v-if="item.gallery_link" :href="item.gallery_link" target="_blank" class="flex-1 text-center py-2 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 text-xs font-semibold transition">
+                        画廊
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script>
-        const { createApp } = Vue
-        createApp({
-            data() {
-                return {
-                    messages: [],
-                    loading: true,
-                    apiUrl: 'https://tg-api.1597021644.workers.dev/list' // 确保是你的 Worker 地址
-                }
-            },
-            async mounted() {
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                // 🔥 配置区：替换成你的 Worker 地址 (注意结尾带 /list)
+                apiUrl: 'https://tg-api.1597021644.workers.dev/list', 
+                
+                items: [],
+                loading: false,
+                error: null,
+                isDesc: true // 默认为降序（最新的在前面）
+            }
+        },
+        mounted() {
+            this.fetchData();
+        },
+        methods: {
+            // 获取数据
+            async fetchData() {
+                this.loading = true;
+                this.error = null;
                 try {
-                    const res = await fetch(this.apiUrl);
-                    if (!res.ok) throw new Error('网络请求失败');
-                    this.messages = await res.json();
+                    const response = await fetch(this.apiUrl);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const data = await response.json();
+                    this.items = data;
+                    
+                    // 获取后立即执行一次排序
+                    this.sortItems();
                 } catch (e) {
-                    console.error("加载失败:", e);
-                    alert("加载数据失败，请检查网络或后端服务。");
+                    console.error("Fetch error:", e);
+                    this.error = "无法连接到后端服务器，请检查 Worker 是否正常运行。";
                 } finally {
                     this.loading = false;
                 }
+            },
+
+            // 🟢 核心功能：排序逻辑
+            toggleSort() {
+                this.isDesc = !this.isDesc; // 切换状态
+                this.sortItems();
+            },
+
+            sortItems() {
+                // 如果是降序 (isDesc=true)，新的(timestamp大)在前面
+                // 如果是升序 (isDesc=false)，旧的(timestamp小)在前面
+                this.items.sort((a, b) => {
+                    const timeA = a.timestamp || 0;
+                    const timeB = b.timestamp || 0;
+                    return this.isDesc ? timeB - timeA : timeA - timeB;
+                });
+            },
+
+            // 格式化时间戳
+            formatDate(timestamp) {
+                if (!timestamp) return '';
+                // 兼容秒和毫秒
+                const date = new Date(timestamp > 10000000000 ? timestamp : timestamp * 1000);
+                return date.toLocaleString('zh-CN', { 
+                    month: '2-digit', day: '2-digit', 
+                    hour: '2-digit', minute: '2-digit' 
+                });
+            },
+
+            // 图片加载失败处理
+            handleImageError(e) {
+                e.target.src = 'https://via.placeholder.com/400x600?text=No+Image'; // 默认占位图
+            },
+            
+            // 点击查看大图
+            openImage(url) {
+                window.open(url, '_blank');
             }
-        }).mount('#app')
-    </script>
+        }
+    }).mount('#app');
+</script>
 </body>
 </html>
