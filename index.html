@@ -103,6 +103,14 @@
 
     <div v-if="totalPages > 1 && !loading" class="flex flex-col items-center mt-12 mb-6">
         <div class="flex flex-wrap justify-center items-center gap-2 text-sm">
+            
+            <button 
+                @click="goToPage(1)" 
+                :disabled="currentPage === 1" 
+                class="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">
+                首页
+            </button>
+
             <button 
                 @click="prevPage" 
                 :disabled="currentPage === 1" 
@@ -127,6 +135,14 @@
                 class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">
                 下一页
             </button>
+
+            <button 
+                @click="goToPage(totalPages)" 
+                :disabled="currentPage === totalPages" 
+                class="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">
+                尾页
+            </button>
+
         </div>
         
         <div class="text-gray-400 text-xs mt-4">
@@ -160,16 +176,14 @@
                 const end = start + this.pageSize;
                 return this.items.slice(start, end);
             },
-            // 🌟 核心算法：动态生成周围的 5 个页码
             pageNumbers() {
                 const total = this.totalPages;
                 const current = this.currentPage;
-                const delta = 2; // 当前页前后各显示 2 页
+                const delta = 2; 
                 
                 let start = Math.max(1, current - delta);
                 let end = Math.min(total, current + delta);
 
-                // 处理边缘情况（在第一页或最后一页时，保持显示 5 个按钮）
                 if (current - delta < 1) {
                     end = Math.min(total, end + (1 - (current - delta)));
                 }
@@ -222,9 +236,8 @@
                 });
             },
 
-            // 🌟 直接跳转到指定页
             goToPage(page) {
-                if (page !== this.currentPage) {
+                if (page !== this.currentPage && page >= 1 && page <= this.totalPages) {
                     this.currentPage = page;
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
