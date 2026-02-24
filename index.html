@@ -16,8 +16,6 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -103,24 +101,37 @@
         </div>
     </div>
 
-    <div v-if="totalPages > 1 && !loading" class="flex justify-center items-center gap-3 mt-12 mb-6 text-sm">
-        <button 
-            @click="prevPage" 
-            :disabled="currentPage === 1" 
-            class="px-5 py-2.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">
-            上一页
-        </button>
+    <div v-if="totalPages > 1 && !loading" class="flex flex-col items-center mt-12 mb-6">
+        <div class="flex flex-wrap justify-center items-center gap-2 text-sm">
+            <button 
+                @click="prevPage" 
+                :disabled="currentPage === 1" 
+                class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">
+                上一页
+            </button>
+            
+            <button 
+                v-for="page in pageNumbers" 
+                :key="page"
+                @click="goToPage(page)"
+                :class="['px-4 py-2 border rounded-lg transition font-medium shadow-sm',
+                         currentPage === page 
+                         ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600' 
+                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50']">
+                {{ page }}
+            </button>
+            
+            <button 
+                @click="nextPage" 
+                :disabled="currentPage === totalPages" 
+                class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">
+                下一页
+            </button>
+        </div>
         
-        <span class="text-gray-600 font-medium px-2">
-            第 {{ currentPage }} 页 / 共 {{ totalPages }} 页 <span class="text-gray-400 ml-1">({{ items.length }} 条记录)</span>
-        </span>
-        
-        <button 
-            @click="nextPage" 
-            :disabled="currentPage === totalPages" 
-            class="px-5 py-2.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">
-            下一页
-        </button>
+        <div class="text-gray-400 text-xs mt-4">
+            共 {{ totalPages }} 页，包含 {{ items.length }} 条记录
+        </div>
     </div>
 
 </div>
@@ -132,26 +143,45 @@
         data() {
             return {
                 apiUrl: 'https://zq.zzxxcc.de/list', 
-                items: [],         // 所有的原始数据
+                items: [],         
                 loading: false,
                 error: null,
-                isDesc: true,      // 默认为降序
-                
-                // 🌟 分页相关的状态变量
-                currentPage: 1,    // 当前处于第几页
-                pageSize: 20       // 每页显示 20 个
+                isDesc: true,      
+                currentPage: 1,    
+                pageSize: 20       
             }
         },
         computed: {
-            // 自动计算总页数 (向上取整)
             totalPages() {
                 return Math.ceil(this.items.length / this.pageSize) || 1;
             },
-            // 自动切割出当前页需要显示的数据
             paginatedItems() {
                 const start = (this.currentPage - 1) * this.pageSize;
                 const end = start + this.pageSize;
                 return this.items.slice(start, end);
+            },
+            // 🌟 核心算法：动态生成周围的 5 个页码
+            pageNumbers() {
+                const total = this.totalPages;
+                const current = this.currentPage;
+                const delta = 2; // 当前页前后各显示 2 页
+                
+                let start = Math.max(1, current - delta);
+                let end = Math.min(total, current + delta);
+
+                // 处理边缘情况（在第一页或最后一页时，保持显示 5 个按钮）
+                if (current - delta < 1) {
+                    end = Math.min(total, end + (1 - (current - delta)));
+                }
+                if (current + delta > total) {
+                    start = Math.max(1, start - ((current + delta) - total));
+                }
+
+                const pages = [];
+                for (let i = start; i <= end; i++) {
+                    pages.push(i);
+                }
+                return pages;
             }
         },
         mounted() {
@@ -169,7 +199,7 @@
                     this.items = data;
                     
                     this.sortItems();
-                    this.currentPage = 1; // 刷新数据后回到第一页
+                    this.currentPage = 1; 
                 } catch (e) {
                     console.error("Fetch error:", e);
                     this.error = "无法连接到后端服务器，请检查 Worker 是否正常运行。";
@@ -181,7 +211,7 @@
             toggleSort() {
                 this.isDesc = !this.isDesc;
                 this.sortItems();
-                this.currentPage = 1; // 切换排序后回到第一页，体验更好
+                this.currentPage = 1; 
             },
 
             sortItems() {
@@ -192,17 +222,25 @@
                 });
             },
 
-            // 🌟 翻页逻辑
+            // 🌟 直接跳转到指定页
+            goToPage(page) {
+                if (page !== this.currentPage) {
+                    this.currentPage = page;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            },
+
             prevPage() {
                 if (this.currentPage > 1) {
                     this.currentPage--;
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); // 翻页后平滑滚动到顶部
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             },
+            
             nextPage() {
                 if (this.currentPage < this.totalPages) {
                     this.currentPage++;
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); // 翻页后平滑滚动到顶部
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             },
 
