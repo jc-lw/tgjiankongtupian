@@ -73,13 +73,14 @@
     </div>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <div v-for="item in paginatedItems" :key="item.msg_id" class="bg-white rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 overflow-hidden group flex flex-col border border-slate-100">
+        <div v-for="(item, index) in paginatedItems" :key="item.msg_id" class="bg-white rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 overflow-hidden group flex flex-col border border-slate-100">
             
             <div class="image-wrapper relative aspect-[3/4] overflow-hidden flex items-center justify-center">
                 <img 
                     :src="getProxyUrl(item.image_url)" 
                     :alt="item.msg_id"
-                    loading="lazy"
+                    :loading="index < 6 ? 'eager' : 'lazy'"
+                    :fetchpriority="index < 6 ? 'high' : 'auto'"
                     class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 cursor-pointer image-fade-in relative z-10"
                     @load="$event.target.classList.add('image-loaded')"
                     @click="openImage(getProxyUrl(item.image_url))"
@@ -186,7 +187,6 @@
         },
         mounted() {
             this.fetchData();
-            // 监听滚动事件，控制“回到顶部”按钮的显示
             window.addEventListener('scroll', this.handleScroll);
         },
         beforeUnmount() {
@@ -201,7 +201,6 @@
             },
             getProxyUrl(url) {
                 if (!url) return '';
-                // 修复双斜杠拼接问题，确保干净的 URL 结构
                 if (url.startsWith('http') && !url.includes('zzxxcc.de')) {
                     const cleanWorkerUrl = this.workerUrl.endsWith('/') ? this.workerUrl : this.workerUrl + '/';
                     return cleanWorkerUrl + url;
@@ -222,7 +221,7 @@
                     console.error("Fetch Error:", e);
                     this.error = "边缘节点网络拥堵或 D1 数据库无响应。";
                 } finally {
-                    setTimeout(() => { this.loading = false; }, 400); // 预留时间展示优雅骨架屏
+                    setTimeout(() => { this.loading = false; }, 400); 
                 }
             },
             toggleSort() {
@@ -251,7 +250,6 @@
                 return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
             },
             handleImageError(e) {
-                // 更换为更清爽的 SVG 占位图
                 e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" fill="%23f8fafc"><rect width="100%" height="100%"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui" font-weight="600" font-size="16" fill="%2394a3b8">图片加载失败</text></svg>'; 
                 e.target.classList.remove('image-fade-in');
             },
