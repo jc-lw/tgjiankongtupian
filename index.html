@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram 频道图库监控</title>
+    <title>TG 频道图库 - 智能分发版</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -16,9 +16,11 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 min-h-screen font-sans">
 
 <div id="app" class="container mx-auto px-4 py-8">
     
@@ -50,12 +52,12 @@
 
     <div v-if="loading" class="flex justify-center items-center py-20">
         <div class="loader mr-3"></div>
-        <span class="text-gray-500 text-lg">正在加载资源...</span>
+        <span class="text-gray-500 text-lg">正在通过边缘节点同步资源...</span>
     </div>
 
     <div v-if="!loading && items.length === 0" class="text-center py-20 text-gray-500">
         <p class="text-xl">暂无数据</p>
-        <p class="text-sm mt-2">请确认 Worker 是否已有数据推送</p>
+        <p class="text-sm mt-2">请确认 D1 数据库中已存储抓取记录</p>
     </div>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -81,7 +83,7 @@
                 </h3>
                 
                 <p class="text-gray-600 text-sm line-clamp-3 mb-4 flex-grow h-16">
-                    {{ item.description || item.content || '暂无描述...' }}
+                    {{ item.description || item.content || '暂无详细描述信息...' }}
                 </p>
 
                 <div class="text-xs text-gray-400 mb-3 flex items-center gap-1">
@@ -90,11 +92,17 @@
                 </div>
 
                 <div class="flex gap-2 mt-auto pt-3 border-t border-gray-100">
-                    <a v-if="item.telegraph_link" :href="'https://bzz.zzxxcc.de/' + item.telegraph_link" target="_blank" class="flex-1 text-center py-2 bg-gray-50 text-gray-600 rounded hover:bg-gray-200 text-xs font-semibold transition">
+                    <a v-if="item.telegraph_link" 
+                       :href="getProxyUrl('https://bzz.zzxxcc.de/' + item.telegraph_link)" 
+                       target="_blank" 
+                       class="flex-1 text-center py-2 bg-gray-50 text-gray-600 rounded hover:bg-gray-200 text-xs font-semibold transition">
                         Telegraph
                     </a>
-                    <a v-if="item.gallery_link" :href="item.gallery_link" target="_blank" class="flex-1 text-center py-2 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 text-xs font-semibold transition">
-                        画廊
+                    <a v-if="item.gallery_link" 
+                       :href="item.gallery_link" 
+                       target="_blank" 
+                       class="flex-1 text-center py-2 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 text-xs font-semibold transition">
+                        源画廊
                     </a>
                 </div>
             </div>
@@ -105,11 +113,14 @@
         <div class="flex flex-wrap justify-center items-center gap-2 text-sm">
             <button @click="goToPage(1)" :disabled="currentPage === 1" class="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">首页</button>
             <button @click="prevPage" :disabled="currentPage === 1" class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">上一页</button>
-            <button v-for="page in pageNumbers" :key="page" @click="goToPage(page)" :class="['px-4 py-2 border rounded-lg transition font-medium shadow-sm', currentPage === page ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50']">{{ page }}</button>
+            
+            <button v-for="page in pageNumbers" :key="page" @click="goToPage(page)" :class="['px-4 py-2 border rounded-lg transition font-medium shadow-sm', currentPage === page ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50']">
+                {{ page }}
+            </button>
+            
             <button @click="nextPage" :disabled="currentPage === totalPages" class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">下一页</button>
             <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages" class="px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium text-gray-700">尾页</button>
         </div>
-        <div class="text-gray-400 text-xs mt-4">共 {{ totalPages }} 页，包含 {{ items.length }} 条记录</div>
     </div>
 
 </div>
@@ -120,13 +131,16 @@
     createApp({
         data() {
             return {
-                apiUrl: 'https://zq.zzxxcc.de/list', 
-                items: [],         
+                // 后端数据 API 地址
+                apiUrl: 'https://zq.zzxxcc.de/list',
+                // Worker 代理地址
+                workerUrl: 'https://bzz.zzxxcc.de/',
+                items: [],
                 loading: false,
                 error: null,
-                isDesc: true,      
-                currentPage: 1,    
-                pageSize: 20       
+                isDesc: true,
+                currentPage: 1,
+                pageSize: 24
             }
         },
         computed: {
@@ -139,7 +153,7 @@
             pageNumbers() {
                 const total = this.totalPages;
                 const current = this.currentPage;
-                const delta = 2; 
+                const delta = 2;
                 let start = Math.max(1, current - delta);
                 let end = Math.min(total, current + delta);
                 if (current - delta < 1) end = Math.min(total, end + (1 - (current - delta)));
@@ -153,17 +167,14 @@
             this.fetchData();
         },
         methods: {
-            // 🚀 核心新增：代理池 URL 转换函数
-            getProxyUrl(originalUrl) {
-                if (!originalUrl) return '';
-                // 你的 Worker 节点分发中心 (务必带斜杠结尾)
-                const WORKER_URL = "https://dl.1597021644.workers.dev/";
-                
-                // 防重复套娃验证，如果是 http 开头，直接拼接到 Worker 后面
-                if (originalUrl.startsWith('http') && !originalUrl.includes('bzz.zzxxcc.de')) {
-                    return WORKER_URL + originalUrl;
+            // 🚀 核心函数：将原始 URL 封装进 Worker 代理池
+            getProxyUrl(url) {
+                if (!url) return '';
+                // 检查是否已经是代理链接，避免套娃
+                if (url.startsWith('http') && !url.includes('zzxxcc.de')) {
+                    return this.workerUrl + url;
                 }
-                return originalUrl;
+                return url;
             },
 
             async fetchData() {
@@ -171,14 +182,14 @@
                 this.error = null;
                 try {
                     const response = await fetch(this.apiUrl);
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    if (!response.ok) throw new Error(`HTTP 异常: ${response.status}`);
                     const data = await response.json();
                     this.items = data;
                     this.sortItems();
-                    this.currentPage = 1; 
+                    this.currentPage = 1;
                 } catch (e) {
-                    console.error("Fetch error:", e);
-                    this.error = "无法连接到后端服务器，请检查 Worker 是否正常运行。";
+                    console.error("Fetch Error:", e);
+                    this.error = "无法获取资源列表，请检查后端 API 或网络连接。";
                 } finally {
                     this.loading = false;
                 }
@@ -187,7 +198,7 @@
             toggleSort() {
                 this.isDesc = !this.isDesc;
                 this.sortItems();
-                this.currentPage = 1; 
+                this.currentPage = 1;
             },
 
             sortItems() {
@@ -205,19 +216,8 @@
                 }
             },
 
-            prevPage() {
-                if (this.currentPage > 1) {
-                    this.currentPage--;
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-            },
-            
-            nextPage() {
-                if (this.currentPage < this.totalPages) {
-                    this.currentPage++;
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-            },
+            prevPage() { if (this.currentPage > 1) this.goToPage(this.currentPage - 1); },
+            nextPage() { if (this.currentPage < this.totalPages) this.goToPage(this.currentPage + 1); },
 
             formatDate(timestamp) {
                 if (!timestamp) return '';
@@ -229,7 +229,8 @@
             },
 
             handleImageError(e) {
-                e.target.src = 'https://via.placeholder.com/400x600?text=No+Image'; 
+                // 如果节点加载图片失败，显示占位图
+                e.target.src = 'https://via.placeholder.com/400x600?text=Node+Load+Error';
             },
             
             openImage(url) {
