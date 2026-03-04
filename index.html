@@ -123,7 +123,7 @@
         </div>
     </div>
 
-    <div v-if="totalPages > 1 && !loading" class="flex flex-col items-center mt-12 mb-8">
+    <div v-if="totalPages > 1 && !loading" class="flex flex-col items-center mt-12 mb-8 gap-5">
         <div class="flex flex-wrap justify-center items-center gap-2 text-sm">
             <button @click="goToPage(1)" :disabled="currentPage === 1" class="px-3 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold text-slate-600">首页</button>
             <button @click="prevPage" :disabled="currentPage === 1" class="px-3 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold text-slate-600">
@@ -139,7 +139,29 @@
             </button>
             <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages" class="px-3 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold text-slate-600">尾页</button>
         </div>
-        <p class="text-slate-400 text-xs mt-4 font-medium">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</p>
+        
+        <div class="flex flex-wrap items-center justify-center gap-4 text-sm text-slate-500 font-medium bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm">
+            <span>第 <strong class="text-blue-600">{{ currentPage }}</strong> 页 / 共 <strong class="text-slate-700">{{ totalPages }}</strong> 页</span>
+            <div class="w-px h-4 bg-slate-300 hidden sm:block"></div>
+            <div class="flex items-center gap-2">
+                跳至
+                <input 
+                    type="number" 
+                    v-model.number="jumpPageInput" 
+                    @keyup.enter="executeJump"
+                    :min="1" 
+                    :max="totalPages"
+                    class="w-14 px-1.5 py-1 text-center border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700 bg-slate-50 shadow-inner"
+                >
+                页
+                <button 
+                    @click="executeJump" 
+                    class="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 rounded-lg transition-colors active:scale-95 font-semibold ml-1"
+                >
+                    跳转
+                </button>
+            </div>
+        </div>
     </div>
 
     <button @click="scrollToTop" :class="['fixed bottom-6 right-6 p-3 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-1 transition-all z-50 focus:outline-none', showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none']">
@@ -162,7 +184,8 @@
                 isDesc: true,
                 currentPage: 1,
                 pageSize: 24,
-                showBackToTop: false
+                showBackToTop: false,
+                jumpPageInput: 1 // 🌟 新增：绑定跳转输入框的值
             }
         },
         computed: {
@@ -217,6 +240,7 @@
                     this.items = data;
                     this.sortItems();
                     this.currentPage = 1;
+                    this.jumpPageInput = 1; // 刷新数据时重置输入框
                 } catch (e) {
                     console.error("Fetch Error:", e);
                     this.error = "边缘节点网络拥堵或 D1 数据库无响应。";
@@ -228,6 +252,7 @@
                 this.isDesc = !this.isDesc;
                 this.sortItems();
                 this.currentPage = 1;
+                this.jumpPageInput = 1; // 切换排序时重置输入框
             },
             sortItems() {
                 this.items.sort((a, b) => {
@@ -236,11 +261,23 @@
                     return this.isDesc ? timeB - timeA : timeA - timeB;
                 });
             },
+            // 🌟 原有跳转逻辑：加入输入框同步
             goToPage(page) {
                 if (page !== this.currentPage && page >= 1 && page <= this.totalPages) {
                     this.currentPage = page;
+                    this.jumpPageInput = page; // 同步当前页码到输入框
                     this.scrollToTop();
                 }
+            },
+            // 🌟 新增：处理手动输入跳转逻辑
+            executeJump() {
+                let target = parseInt(this.jumpPageInput);
+                // 防呆保护：处理非数字或超出范围的输入
+                if (isNaN(target) || target < 1) target = 1;
+                if (target > this.totalPages) target = this.totalPages;
+                
+                this.goToPage(target);
+                this.jumpPageInput = target; // 强制回写合法数值到输入框
             },
             prevPage() { if (this.currentPage > 1) this.goToPage(this.currentPage - 1); },
             nextPage() { if (this.currentPage < this.totalPages) this.goToPage(this.currentPage + 1); },
